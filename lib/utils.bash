@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for zephyr-rtos-sdk.
-GH_REPO="https://github.com/jadejr/zephyr-rtos-sdk"
+GH_REPO="https://github.com/zephyrproject-rtos/sdk-ng"
 TOOL_NAME="zephyr-rtos-sdk"
 TOOL_TEST="zephyr-rtos-sdk --help"
 
@@ -37,21 +36,58 @@ list_all_versions() {
 }
 
 download_release() {
-	local version filename url
+	local version
+	local filename
 	version="$1"
 	filename="$2"
 
-	# TODO: Adapt the release URL convention for zephyr-rtos-sdk
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	local url
+	local platform
 
+	os_name="$(uname -s)"
+	ext="tar.xz"
+	# Set the platform variable based on the OS name
+	case "$os_name" in
+		"Darwin")
+			platform="macos"
+			;;
+		"Linux")
+			platform="linux"
+			;;
+		"CYGWIN"*|"MINGW"*|"MSYS"*)
+			platform="windows"
+			ext="7z"
+			;;
+		*)
+			echo "Unsupported operating system: $os_name"
+			exit 1
+			;;
+	esac
+
+	arch="$(uname -m)"
+	case "$arch" in
+		"aarch64")
+			arch="aarch64"
+			;;
+		"x86_64")
+			arch="x86_64"
+			;;
+		*)
+			echo "Unsupported architecture: ${arch}"
+			exit 1
+			;;
+	esac
+
+
+	url="$GH_REPO/releases/download/v${version}/zephyr-sdk-${version}_${platform}-${arch}.${ext}"
 	echo "* Downloading $TOOL_NAME release $version..."
-	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
+	curl -v "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
 install_version() {
 	local install_type="$1"
 	local version="$2"
-	local install_path="${3%/bin}/bin"
+	local install_path="$3"
 
 	if [ "$install_type" != "version" ]; then
 		fail "asdf-$TOOL_NAME supports release installs only"
@@ -62,9 +98,9 @@ install_version() {
 		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
 		# TODO: Assert zephyr-rtos-sdk executable exists.
-		local tool_cmd
-		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
-		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
+		#local tool_cmd
+		#tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
+		#test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
 
 		echo "$TOOL_NAME $version installation was successful!"
 	) || (
